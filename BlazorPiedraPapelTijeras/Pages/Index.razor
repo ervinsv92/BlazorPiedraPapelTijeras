@@ -1,7 +1,132 @@
 ﻿@page "/"
+@using System.Timers
+@implements IDisposable
 
-<h1>Hello, world!</h1>
+<h1>Piedra, Papel y Tijeras</h1>
 
-Welcome to your new app.
+@if (!string.IsNullOrEmpty(resultadoMensaje)) { 
+    <h3 style="color:@resultadoMensajeColor">@resultadoMensaje</h3>
+    }
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+    <button class="btn btn-info" @onclick="Reiniciar">Reiniciar</button>
+
+    <div style="display:flex; justify-content:center; margin-bottom:20px;">
+        <img src="@jugadaOponente.Imagen" alt="Alternate Text" class="imagen" />
+    </div>
+
+    <div style="display:flex; justify-content:space-around;">
+
+        @foreach (var jugada in jugadas)
+        {
+            <img src="@jugada.Imagen" alt="Alternate Text" class="imagen imagen-seleccionable" @onclick="@(() => SeleccionarJugada(jugada))" />
+        }
+    </div>
+
+    @code{
+        int indiceJugadaOponente = 0;
+        private string resultadoMensaje;
+        private string resultadoMensajeColor;
+        List<Jugada> jugadas = new List<Jugada>() {
+        new Jugada{ Imagen = "piedra.png", OptionPPT = OptionPPT.Piedra, VenceA = OptionPPT.Tijera, PierdeContra = OptionPPT.Papel},
+        new Jugada{ Imagen = "papel.png", OptionPPT = OptionPPT.Papel, VenceA = OptionPPT.Piedra, PierdeContra = OptionPPT.Tijera},
+        new Jugada{ Imagen = "tijeras.png", OptionPPT = OptionPPT.Tijera, VenceA = OptionPPT.Papel, PierdeContra = OptionPPT.Piedra},
+        };
+
+        Jugada jugadaOponente;
+
+        Timer timer;
+
+        protected override void OnInitialized()
+        {
+
+            jugadaOponente = jugadas[0];
+
+            timer = new Timer();
+            timer.Interval = 100;
+            timer.Elapsed += TimerOnElapsed;
+            timer.Start();
+        }
+
+        private void Reiniciar() {
+            timer.Start();
+            resultadoMensaje = null;
+            resultadoMensajeColor = null;
+        }
+
+        //El timer se ejecuta fuera del ciclo de vida de un componente, por eso hay que usar el metodo StateHasChanged,
+        //para que le indique al componente que se redibuje
+        private void TimerOnElapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            indiceJugadaOponente = (indiceJugadaOponente + 1) % jugadas.Count;
+            jugadaOponente = jugadas[indiceJugadaOponente];
+            StateHasChanged();//indica a blazor que debe renderizar el componente porque ha habido un cambio
+            Console.WriteLine("Timer ejecutado");
+        }
+
+        public void Dispose()
+        {
+            //libera los recursos cuando se sale del componente
+            if (timer != null)
+            {
+                timer.Dispose();
+            }
+        }
+
+        class Jugada
+        {
+            public OptionPPT OptionPPT { get; set; }
+            public OptionPPT VenceA { get; set; }
+            public OptionPPT PierdeContra { get; set; }
+            public string Imagen { get; set; }
+            public EstatusJuego JugarContra(Jugada jugada2)
+            {
+
+                if (OptionPPT == jugada2.OptionPPT)
+                {
+                    return EstatusJuego.Empate;
+                }
+                else if (VenceA == jugada2.OptionPPT)
+                {
+                    return EstatusJuego.Victoria;
+                }
+                else
+                {
+                    return EstatusJuego.Derrota;
+                }
+            }
+        }
+
+        enum OptionPPT
+        {
+            Piedra, Papel, Tijera
+        }
+
+        enum EstatusJuego
+        {
+            Victoria, Derrota, Empate
+        }
+
+        private void SeleccionarJugada(Jugada jugada)
+        {
+
+            timer.Stop();
+            var resultado = jugada.JugarContra(jugadaOponente);
+
+            if (resultado == EstatusJuego.Victoria)
+            {
+                resultadoMensaje = "Ganaste";
+                resultadoMensajeColor = "green";
+
+            }
+            else if (resultado == EstatusJuego.Derrota)
+            {
+                resultadoMensaje = "Perdite";
+                resultadoMensajeColor = "red";
+            }
+            else
+            {
+                resultadoMensaje = "Empate";
+                resultadoMensajeColor = "black";
+            }
+        }
+    }
